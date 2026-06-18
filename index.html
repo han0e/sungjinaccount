@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>성진FA 그룹웨어 접속정보 확인</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { box-sizing: border-box; }
+        
+        /* 눈이 편안한 모노톤의 미니멀 배경 */
+        body { 
+            font-family: 'Malgun Gothic', dotum, sans-serif; 
+            background-color: #f8fafc;
+            color: #1e293b;
+            margin: 0; 
+            padding: 20px; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh;
+        }
+
+        /* 플랫 디자인 컨테이너 */
+        .container { 
+            background: #ffffff; 
+            border: 1px solid #e2e8f0;
+            padding: 40px 30px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            width: 100%; 
+            max-width: 450px; 
+            text-align: center; 
+        }
+
+        h2 { margin-top: 0; margin-bottom: 8px; font-size: 24px; font-weight: 700; color: #0f172a; }
+        .subtitle { color: #64748b; font-size: 14px; margin-bottom: 30px; }
+        
+        .link-box { 
+            background: #f1f5f9; 
+            border: 1px solid #e2e8f0;
+            padding: 14px; 
+            border-radius: 8px; 
+            margin-bottom: 25px; 
+            font-weight: bold; 
+            font-size: 14px; 
+        }
+        .link-box a { color: #2563eb; text-decoration: none; }
+        .link-box a:hover { text-decoration: underline; }
+        
+        .form-group { margin-bottom: 20px; text-align: left; }
+        label { display: block; font-size: 14px; color: #334155; margin-bottom: 8px; font-weight: bold; }
+        
+        input, select { 
+            width: 100%; 
+            padding: 12px; 
+            background: #ffffff; 
+            border: 1px solid #cbd5e1; 
+            border-radius: 6px; 
+            font-size: 14px; 
+            color: #0f172a;
+            outline: none;
+        }
+        input:focus, select:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+
+        button { 
+            width: 100%; 
+            padding: 14px; 
+            background: #1e40af; 
+            color: #fff; 
+            border: none; 
+            border-radius: 6px; 
+            font-size: 16px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            margin-top: 10px; 
+            transition: background 0.2s;
+        }
+        button:hover { background: #1d4ed8; }
+        
+        /* 모달 창 */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { 
+            background: #ffffff; 
+            border: 1px solid #e2e8f0;
+            padding: 30px; 
+            border-radius: 12px; 
+            width: 90%; 
+            max-width: 380px; 
+            text-align: left; 
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        .modal-content h3 { margin-top: 0; color: #0f172a; font-size: 18px; }
+        .modal-buttons { display: flex; gap: 12px; margin-top: 20px; }
+        .btn-submit { background: #10b981; margin-top: 0; }
+        .btn-submit:hover { background: #059669; }
+        .btn-close { background: #64748b; margin-top: 0; }
+        .btn-close:hover { background: #475569; }
+        
+        /* 결과 노출 구역 */
+        .result-box { 
+            display: none; 
+            margin-top: 25px; 
+            padding: 20px; 
+            background: #f8fafc; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 8px; 
+            text-align: left; 
+        }
+        .result-item { margin-bottom: 12px; font-size: 15px; color: #334155; }
+        .result-item:last-child { margin-bottom: 0; }
+        
+        /* 클릭 복사 영역 */
+        .copyable {
+            display: inline-flex;
+            align-items: center;
+            font-weight: bold; 
+            margin-left: 8px; 
+            padding: 4px 8px;
+            background: #edf2f7;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        .copyable:hover {
+            background: #e2e8f0;
+            color: #2563eb;
+        }
+        .copyable::after {
+            content: "📄 복사";
+            font-size: 11px;
+            font-weight: normal;
+            color: #94a3b8;
+            margin-left: 10px;
+            border-left: 1px solid #cbd5e1;
+            padding-left: 8px;
+        }
+        .copyable:active {
+            background: #cbd5e1;
+        }
+
+        /* 화면 정중앙 Toast 알림 스타일 */
+        .toast-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(4px);
+            color: #ffffff;
+            padding: 14px 28px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 2000;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        .toast-container.show {
+            opacity: 1;
+            visibility: visible;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>성진FA 그룹웨어 접속정보</h2>
+    <div class="subtitle">본인의 이름을 선택한 후 정보를 확인하세요.</div>
+    
+    <div class="link-box">
+        접속 URL : <a href="https://gw.mailplug.com/" target="_blank">gw.mailplug.com</a>
+    </div>
+
+    <div class="form-group">
+        <label for="userSelect">이름 선택 (부서/직위)</label>
+        <select id="userSelect">
+            <option value="">-- 이름을 선택하세요 --</option>
+        </select>
+    </div>
+
+    <button type="button" onclick="openAuthModal()">비밀번호 확인하기</button>
+
+    <div class="result-box" id="resultBox">
+        <div class="result-item">부서/직위: <span id="resInfo" style="font-weight: bold;"></span></div>
+        <div class="result-item">아이디(ID): <span id="resId" class="copyable" onclick="copyToClipboard(this)"></span></div>
+        <div class="result-item">비밀번호(PW): <span id="resPw" class="copyable" onclick="copyToClipboard(this)"></span></div>
+    </div>
+</div>
+
+<div class="modal" id="authModal">
+    <div class="modal-content">
+        <h3>본인 인증</h3>
+        <p style="font-size: 13px; color: #64748b; margin-bottom: 20px;">선택한 사원의 생년월일 8자리를 입력해주세요.</p>
+        <div class="form-group">
+            <label for="birthInput">생년월일 (8자리 숫자)</label>
+            <input type="text" id="birthInput" placeholder="예: 19871225" maxlength="8" 
+                   oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                   onkeydown="if(event.key === 'Enter') verifyIdentity();">
+        </div>
+        <div class="modal-buttons">
+            <button type="button" class="btn-submit" onclick="verifyIdentity()">확인</button>
+            <button type="button" class="btn-close" onclick="closeAuthModal()">취소</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="toast-container">복증 완료되었습니다.</div>
+
+<script>
+// ==========================================
+// 1. Supabase 접속 정보 세팅 (필수 변경 구역)
+// ==========================================
+const SUPABASE_URL = 'https://iknnddzwillzodcqpkvu.supabase.co'; // 본인 Supabase Project URL 입력
+const SUPABASE_ANON_KEY = 'sb_publishable_aON7H1dRHFpL04zTzrWGJQ_K21aUamp';                 // 본인 API anon public key 입력            
+
+const { createClient } = supabase;
+const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const userList = [
+    {code:"P260708", name:"김정수", dept:"생산1팀", duty:"차장"},
+    {code:"P260709", name:"허양열", dept:"생산1팀", duty:"과장"},
+    {code:"P260722", name:"김종원", dept:"생산1팀", duty:"대리"},
+    {code:"P260725", name:"변중현", dept:"생산1팀", duty:"차장"},
+    {code:"P260703", name:"남동수", dept:"생산2팀", duty:"공장장"},
+    {code:"P260716", name:"이준식", dept:"생산2팀", duty:"대리"},
+    {code:"P260718", name:"허우식", dept:"생산2팀", duty:"대리"},
+    {code:"P260721", name:"이명진", dept:"생산2팀", duty:"사원"},
+    {code:"P260719", name:"임병환", dept:"외주관리팀", duty:"실장"},
+    {code:"P260706", name:"강형민", dept:"구매팀", duty:"부장"},
+    {code:"P260711", name:"이상훈", dept:"구매팀", duty:"부장"},
+    {code:"P260705", name:"김달현", dept:"영업팀", duty:"부장"},
+    {code:"P260702", name:"김창우", dept:"영업팀", duty:"이사"},
+    {code:"P260704", name:"신정식", dept:"CS팀", duty:"부장"},
+    {code:"P260713", name:"이종우", dept:"CS팀", duty:"부장"},
+    {code:"P260701", name:"지우성", dept:"CS팀", duty:"부장"},
+    {code:"P260726", name:"황민권", dept:"CS팀", duty:"과장"},
+    {code:"P260710", name:"김종운", dept:"CS팀", duty:"차장"},
+    {code:"P260717", name:"김상호", dept:"설계2팀", duty:"과장"},
+    {code:"P260720", name:"최세영", dept:"설계2팀", duty:"차장"},
+    {code:"P260723", name:"이재상", dept:"설계3팀", duty:"부장"},
+    {code:"P260715", name:"전성원", dept:"설계3팀", duty:"과장"},
+    {code:"P260724", name:"김율", dept:"경영지원팀", duty:"과장"},
+    {code:"P260714", name:"우지수", dept:"외주관리팀", duty:"대리"},
+    {code:"P260712", name:"이나경", dept:"영업팀", duty:"과장"},
+    {code:"P260707", name:"김경종", dept:"외주관리팀", duty:"실장"}
+];
+
+window.onload = function() {
+    const select = document.getElementById('userSelect');
+    const sortedData = [...userList].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+    
+    sortedData.forEach(user => {
+        const option = document.createElement('option');
+        option.value = user.code;
+        option.text = `${user.name} (${user.dept} / ${user.duty})`;
+        select.appendChild(option);
+    });
+
+    // 보안 스크리닝 기능 유지
+    document.addEventListener("contextmenu", e => e.preventDefault());
+    document.addEventListener("keydown", e => {
+        if (e.keyCode === 123 || (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) || (e.ctrlKey && e.keyCode === 85)) {
+            e.preventDefault();
+        }
+    });
+};
+
+function openAuthModal() {
+    const select = document.getElementById('userSelect');
+    if (!select.value) {
+        showToast('이름을 먼저 선택해주세요.');
+        return;
+    }
+    document.getElementById('birthInput').value = '';
+    document.getElementById('authModal').style.display = 'flex';
+    // 모달이 열리면 입력창에 포커스를 자동 지정하여 연속 엔터 유도
+    setTimeout(() => { document.getElementById('birthInput').focus(); }, 100);
+}
+
+function closeAuthModal() {
+    document.getElementById('authModal').style.display = 'none';
+}
+
+async function verifyIdentity() {
+    const select = document.getElementById('userSelect');
+    const rawBirth = document.getElementById('birthInput').value.trim();
+
+    if (rawBirth.length !== 8) {
+        showToast('생년월일 8자리를 정확히 입력하십시오.');
+        return;
+    }
+
+    const formattedBirth = `${rawBirth.substring(0,4)}-${rawBirth.substring(4,6)}-${rawBirth.substring(6,8)}`;
+
+    if (SUPABASE_URL.includes('your-project-id')) {
+        showToast('Supabase 엔드포인트 설정이 누락되었습니다.');
+        return;
+    }
+
+    try {
+        const { data, error } = await _supabase
+            .from('employee_accounts')
+            .select('login_id, login_pw, dept, duty')
+            .eq('code', select.value)
+            .eq('birth', formattedBirth)
+            .maybeSingle();
+
+        if (error) throw error;
+
+        if (data) {
+            document.getElementById('resInfo').innerText = `${data.dept} / ${data.duty}`;
+            document.getElementById('resId').innerText = data.login_id;
+            document.getElementById('resPw').innerText = data.login_pw;
+            
+            document.getElementById('resultBox').style.display = 'block';
+            closeAuthModal();
+            showToast('인증이 정상 완료되었습니다.');
+        } else {
+            showToast('생년월일 정보가 일치하지 않습니다.');
+        }
+    } catch (err) {
+        console.error(err);
+        showToast('DB 데이터 조회 실패.');
+    }
+}
+
+function copyToClipboard(element) {
+    const textToCopy = element.childNodes[0].nodeValue.trim(); 
+    navigator.clipboard.writeText(textToCopy).then(() => {
+        showToast(`📋 복사완료: ${textToCopy}`);
+    }).catch(err => {
+        console.error('복사 기능 오류:', err);
+        showToast('복사 처리에 실패했습니다.');
+    });
+}
+
+let toastTimer = null;
+function showToast(message) {
+    const toast = document.getElementById('toast');
+    toast.innerText = message;
+    
+    clearTimeout(toastTimer);
+    toast.classList.add('show');
+    
+    toastTimer = setTimeout(() => {
+        toast.classList.remove('show');
+    }, 2000);
+}
+</script>
+</body>
+</html>
