@@ -403,6 +403,40 @@
           transform: translateY(0);
         }
       }
+
+      /* 가이드 방법 선택 서브 탭 */
+      .method-tabs {
+        display: flex;
+        justify-content: center;
+        gap: 6px;
+        margin-bottom: 20px;
+        background: #f1f5f9;
+        padding: 4px;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+      }
+      .method-tab-btn {
+        flex: 1;
+        padding: 8px;
+        background: transparent;
+        color: #64748b;
+        border: none;
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-top: 0;
+      }
+      .method-tab-btn.active {
+        background: #ffffff;
+        color: #1e40af;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e2e8f0;
+      }
+      .method-tab-btn:hover:not(.active) {
+        color: #0f172a;
+      }
     </style>
   </head>
   <body>
@@ -476,6 +510,32 @@
       <div id="guideTab" class="tab-content">
         <div class="subtitle">
           외부 메일(기존 메일)을 성진FA 그룹웨어 메일로 가져오는 가이드입니다.
+          <br /><strong
+            >참고: 메일플러그에서는 POP3 연동 시 1GB 이상의 메일을 한 번에
+            가져올 수 없으므로,<br />
+            1GB 이상의 메일함은 이 백업파일(eml) 방식을 이용하셔야
+            합니다.</strong
+          >
+        </div>
+
+        <!-- 가져오기 방법 선택 탭 -->
+        <div class="method-tabs">
+          <button
+            type="button"
+            class="method-tab-btn active"
+            id="btnMethodPop3"
+            onclick="switchMethod('pop3')"
+          >
+            방법 1: POP3 자동 연동 (1GB 미만)
+          </button>
+          <button
+            type="button"
+            class="method-tab-btn"
+            id="btnMethodBackup"
+            onclick="switchMethod('backup')"
+          >
+            방법 2: 백업 파일 업로드 (1GB 이상)
+          </button>
         </div>
 
         <div class="guide-container">
@@ -598,8 +658,9 @@
       // ==========================================
       // 1. Supabase 접속 정보 세팅 (필수 변경 구역)
       // ==========================================
-      const SUPABASE_URL = "https://iknnddzwillzodcqpkvu.supabase.co";
-      const SUPABASE_ANON_KEY = "sb_publishable_aON7H1dRHFpL04zTzrWGJQ_K21aUamp";
+      const SUPABASE_URL = "https://iknnddzwillzodcqpkvu.supabase.co"; // 본인 Supabase Project URL 입력
+      const SUPABASE_ANON_KEY =
+        "sb_publishable_aON7H1dRHFpL04zTzrWGJQ_K21aUamp"; // 본인 API anon public key 입력
 
       const { createClient } = supabase;
       const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -752,31 +813,10 @@
       // ==========================================
       // 2. 탭 전환 및 메일 가져오기 가이드 스크립트
       // ==========================================
-      function switchTab(tabName) {
-        const container = document.querySelector(".container");
-        const accountTab = document.getElementById("accountTab");
-        const guideTab = document.getElementById("guideTab");
-        const btnAccount = document.getElementById("btnAccount");
-        const btnGuide = document.getElementById("btnGuide");
-
-        if (tabName === "account") {
-          container.classList.remove("wide");
-          accountTab.classList.add("active");
-          guideTab.classList.remove("active");
-          btnAccount.classList.add("active");
-          btnGuide.classList.remove("active");
-        } else {
-          container.classList.add("wide");
-          accountTab.classList.remove("active");
-          guideTab.classList.add("active");
-          btnAccount.classList.remove("active");
-          btnGuide.classList.add("active");
-          renderStep();
-        }
-      }
-
+      let activeMethod = "pop3"; // "pop3" or "backup"
       let currentStep = 0;
-      const guideSteps = [
+
+      const pop3Steps = [
         {
           title:
             "준비단계: 가져올 외부 메일(네이버 등)의 POP3/IMAP 설정 활성화",
@@ -810,12 +850,81 @@
         },
       ];
 
+      const backupSteps = [
+        {
+          title: "1단계: 네이버웍스 메일 백업파일 다운로드",
+          desc: "네이버웍스 메일 화면에서 우측 상단의 <strong>[환경설정]</strong>(톱니바퀴 모양) 클릭 후, 좌측 메뉴에서 <strong>[메일함 관리 및 백업]</strong>을 선택합니다. 백업할 메일함의 <strong>[백업]</strong>을 클릭하여 백업 파일(ZIP 형식)을 다운로드합니다.<br><br>⚠️ <strong>참고:</strong> 메일플러그에서는 POP3 연동 시 <strong>1GB 이상</strong>의 메일을 한 번에 가져올 수 없으므로, 1GB 이상의 메일함은 이 백업파일(eml) 방식을 이용하셔야 합니다.",
+          img: "4-1.png",
+        },
+        {
+          title: "2단계: 백업 ZIP 파일 수정 (README.html 삭제)",
+          desc: "다운로드한 백업 ZIP 파일의 압축을 풀지 않고 더블 클릭 등으로 열어, 내부 폴더에 포함된 <strong>README.html</strong> 파일을 찾아 삭제합니다.<br><br>⚠️ <strong>중요:</strong> ZIP 파일 내에 `README.html` 파일이 포함되어 있으면 메일플러그에서 가져오기 시 오류가 발생하므로 <strong>반드시 삭제</strong>해주셔야 합니다.",
+          img: "4-2.png",
+        },
+        {
+          title: "3단계: 메일플러그 가져오기 메뉴 이동",
+          desc: "메일플러그 그룹웨어 로그인 후 <strong>[메일]</strong> 서비스로 이동합니다. 좌측 메뉴 하단의 <strong>[톱니바퀴 설정 아이콘]</strong>을 클릭한 뒤, 각 메일함 항목 옆에 있는 <strong>[가져오기]</strong> 버튼을 클릭합니다.",
+          img: "5.png",
+        },
+        {
+          title: "4단계: ZIP 파일 업로드 및 가져오기 실행",
+          desc: "메일 가져오기 팝업창에서 <strong>[파일 선택]</strong>을 눌러 <strong>README.html을 삭제하여 수정한 ZIP 파일</strong>을 업로드합니다.<br>이후 아래의 <strong>[가져오기]</strong> 버튼을 클릭하여 진행합니다.<br><br>⏱️ <strong>안내사항:</strong><br>• 메일을 가져오는 데는 데이터 용량에 따라 <strong>상당한 시간</strong>이 소요될 수 있습니다.<br>• 가져오기가 완료되었다는 안내가 표시되더라도, 실제 메일함에 메일이 즉시 보이지 않을 수 있습니다. <strong>시간이 지나면 정상적으로 노출</strong>되오니 잠시만 기다려주시기 바랍니다.",
+          img: "6.png",
+        },
+      ];
+
+      function getSteps() {
+        return activeMethod === "pop3" ? pop3Steps : backupSteps;
+      }
+
+      function switchTab(tabName) {
+        const container = document.querySelector(".container");
+        const accountTab = document.getElementById("accountTab");
+        const guideTab = document.getElementById("guideTab");
+        const btnAccount = document.getElementById("btnAccount");
+        const btnGuide = document.getElementById("btnGuide");
+
+        if (tabName === "account") {
+          container.classList.remove("wide");
+          accountTab.classList.add("active");
+          guideTab.classList.remove("active");
+          btnAccount.classList.add("active");
+          btnGuide.classList.remove("active");
+        } else {
+          container.classList.add("wide");
+          accountTab.classList.remove("active");
+          guideTab.classList.add("active");
+          btnAccount.classList.remove("active");
+          btnGuide.classList.add("active");
+          switchMethod("pop3"); // 기존 탭 전환 시 기본적으로 POP3 방법 및 첫번째 스텝으로 초기화
+        }
+      }
+
+      function switchMethod(method) {
+        activeMethod = method;
+        currentStep = 0;
+
+        const btnPop3 = document.getElementById("btnMethodPop3");
+        const btnBackup = document.getElementById("btnMethodBackup");
+
+        if (method === "pop3") {
+          btnPop3.classList.add("active");
+          btnBackup.classList.remove("active");
+        } else {
+          btnPop3.classList.remove("active");
+          btnBackup.classList.add("active");
+        }
+
+        renderStep();
+      }
+
       function renderStep() {
-        const step = guideSteps[currentStep];
+        const steps = getSteps();
+        const step = steps[currentStep];
 
         document.getElementById("guideStepTitle").innerText = step.title;
         document.getElementById("guideStepIndicator").innerText =
-          `${currentStep + 1} / ${guideSteps.length}`;
+          `${currentStep + 1} / ${steps.length}`;
         document.getElementById("guideImg").src = step.img;
         document.getElementById("guideImg").alt = step.title;
         document.getElementById("guideDesc").innerHTML = step.desc;
@@ -823,7 +932,7 @@
         // 프로그레스 바 세그먼트 동적 생성 및 활성화
         const progressBar = document.querySelector(".guide-progress-bar");
         progressBar.innerHTML = "";
-        for (let i = 0; i < guideSteps.length; i++) {
+        for (let i = 0; i < steps.length; i++) {
           const seg = document.createElement("div");
           seg.className = "progress-segment";
           if (i <= currentStep) {
@@ -834,7 +943,7 @@
 
         document.getElementById("btnPrev").disabled = currentStep === 0;
         document.getElementById("btnNext").innerText =
-          currentStep === guideSteps.length - 1 ? "완료" : "다음";
+          currentStep === steps.length - 1 ? "완료" : "다음";
       }
 
       function prevStep() {
@@ -845,7 +954,8 @@
       }
 
       function nextStep() {
-        if (currentStep < guideSteps.length - 1) {
+        const steps = getSteps();
+        if (currentStep < steps.length - 1) {
           currentStep++;
           renderStep();
         } else {
